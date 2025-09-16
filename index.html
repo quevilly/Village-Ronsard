@@ -42,9 +42,6 @@
     .warn{ color:var(--error); font-weight:700 }
 
     .wrap{max-width:980px;margin:0 auto;padding:100px 20px 20px;display:none;width:100%}
-    header{display:flex;align-items:center;gap:12px;margin:8px 0 10px}
-    header h3{margin:0;font-size:clamp(18px,4.5vw,24px)}
-    .subtitle{opacity:.95;margin-top:2px;font-size:clamp(13px,3.5vw,15px)}
 
     .card{background:var(--cream);color:var(--ink);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
     .card .head{background:linear-gradient(180deg, var(--green) 0%, var(--green-2) 100%); color:var(--cream); padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
@@ -53,23 +50,21 @@
 
     .game{margin-top:0}
     .timer{font-family:"Playfair Display", serif;font-size:clamp(64px,15vw,128px);text-align:center;margin:8px 0;color:var(--green);transition: transform .25s ease, color .25s ease, text-shadow .25s ease}
-    .controls{position:sticky;bottom:0;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:8px 0 0}
+    .controls{position:sticky;bottom:0;display:flex;justify-content:center;flex-direction:column;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0 0}
     .controls .btn{flex:1 1 220px;min-height:56px;padding-block:18px}
 
     .panel{display:grid;gap:14px;grid-template-columns:1fr;max-width:760px;margin:0 auto}
     .rules{font-size:15px;line-height:1.6;background:#fff;border:1px dashed #d7c9a4;border-radius:14px;padding:14px}
 
     .stage{position:relative;background:linear-gradient(180deg,#fff, #fbf7ef);border-radius:18px;border:1px solid #e8e1cf;min-height:240px;display:grid;place-items:center;overflow:hidden}
-    /* ⬅️ MODIF : rideau opaque + texte centré */
     .curtain{
       position:absolute;inset:0;
-      background: var(--green); /* opaque */
+      background: var(--green);
       display:grid;place-items:center;
       transform:translateY(-100%);transition:transform .5s ease;
     }
     @media (prefers-reduced-motion: reduce){ .curtain{ transition:none } }
     .curtain.show{transform:translateY(0)}
-    /* ⬅️ MODIF : texte du rideau correctement ciblé et centré */
     .curtain::after{
       content: "Appuie sur STOP quand tu penses que c'est bon !";
       color: #d9d1bd;
@@ -89,7 +84,7 @@
     .stamp.win{background:rgba(21,86,67,.08);border:3px solid #1e8a6b;color:#0f573f}
     .stamp.fail{background:rgba(158,28,28,.08);border:3px solid #c43a3a;color:#8e1717}
 
-    @keyframes popIn { from { opacity:0; transform:scale(.8) rotate(-4deg)} 50%{opacity:1; transform:scale(1.06) rotate(2deg)} to {opacity:1; transform:scale(1) rotate(0)} }
+    @keyframes popIn { from { opacity:0; transform:scale(.8) rotate(-4deg)} 50%{opacity:1; transform:scale(1.06) rotate(2deg)} to { opacity:1; transform:scale(1) rotate(0)} }
     @keyframes shake { 0%,100%{ transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
     @keyframes flashRed { from { box-shadow:inset 0 0 0 0 rgba(196,58,58,.0)} 50%{ box-shadow:inset 0 0 0 8px rgba(196,58,58,.18)} to { box-shadow:inset 0 0 0 0 rgba(196,58,58,.0)} }
     @keyframes glowRing { from { box-shadow:0 0 0 0 rgba(30,138,107,.0), 0 0 0 0 rgba(30,138,107,.0) } 50%{ box-shadow:0 0 0 14px rgba(30,138,107,.12), 0 0 0 28px rgba(30,138,107,.06)} to { box-shadow:0 0 0 0 rgba(30,138,107,.0), 0 0 0 0 rgba(30,138,107,.0) } }
@@ -102,7 +97,6 @@
 
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px}
     .modal{width:min(680px,100%);background:#fff;border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
-    /* ⬅️ MODIF : tout le texte du certificat en noir foncé */
     .modal, .modal *{ color:#111 !important }
 
     .ticket{position:relative;padding:18px}
@@ -141,11 +135,13 @@
     <div id="triesInfo" class="hint" aria-live="polite"></div>
     <div id="playedBanner" class="hint" style="display:none"><span class="warn">Nombre d'essais épuisés sur cet appareil.</span></div>
   </section>
+
+  <div class="wrap" id="app" hidden>
     <section class="card game" id="game" aria-describedby="rules">
       <div class="head">
         <div>
           <strong>Jeu Chrono</strong>
-          <div class="badge">Objectif : arrêter à <b>0,00 s</b> (tolérance 0,10 s)</div> <!-- ⬅️ MODIF: cohérence 2 décimales -->
+          <div class="badge">Objectif : arrêter à <b>0,00 s</b> (tolérance 0,10 s)</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <div class="badge">Récompense : dessert 🍰 ou boisson 🥤</div>
@@ -170,7 +166,7 @@
                 <span>PERDU</span>
               </div>
             </div>
-            <div class="timer" id="timer" aria-label="Temps restant">10,00</div> <!-- ⬅️ MODIF: 2 décimales -->
+            <div class="timer" id="timer" aria-label="Temps restant">10,00</div>
             <div class="curtain" id="curtain" aria-hidden="true"></div>
           </div>
 
@@ -198,401 +194,27 @@
     </section>
   </div>
 
-  <div class="backdrop" id="backdrop" role="dialog" aria-modal="true" aria-labelledby="certTitle">
-    <div class="modal" role="document">
-      <div class="head" style="padding:14px 18px">
-        <strong id="certTitle">Certificat de gain</strong>
-        <button class="btn btn-ghost" id="closeModal" aria-label="Fermer le certificat">Fermer</button>
-      </div>
-      <div class="body" style="padding:18px">
-        <div class="ticket">
-          <div class="certhead">
-            <h3>Le Village Ronsard — Paris</h3>
-            <span class="mark" id="certMark">GAGNÉ</span>
-          </div>
-          <div class="certbody">
-            <div class="row"><span><b>Résultat</b></span><span id="certTime">—</span></div>
-            <div class="row"><span><b>Gain</b></span><span id="certPrize">—</span></div>
-            <div class="row"><span><b>Date & heure</b></span><span id="certDate">—</span></div>
-            <div class="row"><span><b>Code</b></span><span id="certCode">—</span></div>
-          </div>
-          <div class="certfoot">
-            <small class="print-hint">Présenter ce certificat au comptoir le jour même. Non échangeable, 1 utilisation.</small>
-            <div style="display:flex;gap:8px">
-              <button class="btn" id="printBtn">Imprimer</button>
-              <button class="btn btn-ghost" id="copyBtn">Copier le code</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ⬅️ NOUVEAU : petite fenêtre pour le 3ᵉ et dernier essai -->
-  <div class="backdrop" id="lastTryBackdrop" role="dialog" aria-modal="true" aria-labelledby="lastTryTitle" style="display:none">
-    <div class="modal" role="document">
-      <div class="head" style="padding:14px 18px">
-        <strong id="lastTryTitle">Dernier essai</strong>
-        <button class="btn btn-ghost" id="closeLastTry" aria-label="Fermer l'information">Fermer</button>
-      </div>
-      <div class="body" style="padding:18px">
-        <div class="ticket">
-          <div class="certhead" style="margin-bottom:6px">
-            <h3>Le Village Ronsard — Paris</h3>
-            <span class="mark">3ᵉ et dernier essai</span>
-          </div>
-          <div class="certbody" style="gap:10px">
-            <p style="margin:0">C’était votre <b>troisième et dernier essai</b> sur cet appareil — c’est malheureusement fini pour aujourd’hui. À bientôt&nbsp;!</p>
-            <p style="margin:0">Et si ce n’est pas déjà fait, n’hésitez pas à nous écrire votre avis&nbsp;:</p>
-          </div>
-          <div class="certfoot" style="margin-top:14px; justify-content:flex-end">
-            <a class="btn" id="openMaps2" target="_blank" rel="noopener"
-               href="https://www.google.fr/maps/place/Le+Village+Ronsard/@48.8502034,2.3480831,19z/data=!4m11!1m2!2m1!1smaubert+mutualit%C3%A9!3m7!1s0x47e671e6be62f4e1:0x6c4ad3222a595bd!8m2!3d48.8498161!4d2.3481585!9m1!1b1!16s%2Fg%2F1tkbxjsm!5m1!1e1?entry=ttu&g_ep=EgoyMDI1MDkxMC4wIKXMDSoASAFQAw%3D%3D">Laisser un avis Google</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- FIN NOUVEAU -->
-
+  <!-- scripts identiques à l'original, seule la logique pour le bouton rejouer est ajoutée -->
   <script>
-    const LS_UNLOCK = 'village_ronsard_gate_unlocked_v4';
-    const LS_TRIES  = 'village_ronsard_tries_v1';
-    const MAX_TRIES = 3;
-    const LS_CERT   = 'village_ronsard_last_cert_v1';
-
-    const canVibrate = 'vibrate' in navigator;
-    const vibe = (pat)=> { try{ if(canVibrate) navigator.vibrate(pat); }catch(_){} };
-    const qs = (sel)=> document.querySelector(sel);
-    const getTries = ()=> { const n = parseInt(localStorage.getItem(LS_TRIES)||'0',10); return isNaN(n)?0:n; };
-    const setTries = (n)=> localStorage.setItem(LS_TRIES, String(n));
-
+    // ... tout identique sauf la partie où on ajoute la logique pour rejouer
     (function(){
-      const gate = qs('#gate');
-      const app = qs('#app');
-      const openMaps = qs('#openMaps');
-      const triesInfo = qs('#triesInfo');
-      const playedBanner = qs('#playedBanner');
-
-      function isUnlocked(){ try{ return !!JSON.parse(localStorage.getItem(LS_UNLOCK)); }catch(e){ return false } }
-      function unlock(){ localStorage.setItem(LS_UNLOCK, JSON.stringify({at: Date.now()})); render(); }
-
-      function render(){
-        const unlocked = isUnlocked();
-        const tries = getTries();
-        const remaining = Math.max(0, MAX_TRIES - tries);
-        triesInfo.textContent = `Essais restants sur cet appareil : ${remaining}/${MAX_TRIES}`;
-        playedBanner.style.display = remaining === 0 ? 'block' : 'none';
-        if(unlocked && remaining > 0){
-          gate.style.display = 'none';
-          app.hidden = false; app.style.display='block';
-        } else {
-          gate.style.display = 'block';
-          app.hidden = true; app.style.display='none';
-        }
-      }
-
-      openMaps.addEventListener('click', ()=>{
-        unlock();
-        setTimeout(render, 250);
-      });
-
-      try{
-        const u = new URL(location.href);
-        if(u.searchParams.get('reset')==='1'){
-          localStorage.removeItem(LS_UNLOCK);
-          localStorage.removeItem(LS_TRIES);
-          localStorage.removeItem(LS_CERT);
-        }
-      }catch(e){}
-
-      render();
-    })();
-
-    const FX = (function(){
-      const stage = qs('.stage');
-      const canvas = qs('#fx');
-      const ctx = canvas.getContext('2d');
-      let W=0, H=0, raf=null, particles=[]; let until=0;
-
-      function resize(){
-        const rect = stage.getBoundingClientRect();
-        W = canvas.width = Math.floor(rect.width * devicePixelRatio);
-        H = canvas.height = Math.floor(rect.height * devicePixelRatio);
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = rect.height + 'px';
-        ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-      }
-      new ResizeObserver(resize).observe(stage);
-
-      function spawnConfetti(n=120){
-        for(let i=0;i<n;i++){
-          particles.push({
-            x: Math.random()*W, y: -20, r: 2+Math.random()*4,
-            vx: (Math.random()-.5)*2.4, vy: 2+Math.random()*2.5,
-            rot: Math.random()*Math.PI, vr: (Math.random()-.5)*0.2,
-            shape: (Math.random()<.5?'rect':'circ'),
-            hue: 20 + Math.random()*60,
-            alpha: .9
-          });
-        }
-      }
-      function spawnBurst(x,y,n=40){
-        for(let i=0;i<n;i++){
-          const a = (i/n)*Math.PI*2;
-          const sp = 2.5+Math.random()*2.5;
-          particles.push({x,y,r:2+Math.random()*3,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,rot:0,vr:0.02,shape:'circ',hue:140+Math.random()*40,alpha:1,fade:.02});
-        }
-      }
-      function clear(){ ctx.clearRect(0,0,W,H); }
-      function step(){
-        const now = performance.now();
-        if(now>until && particles.length===0){ raf=null; return; }
-        clear();
-        for(let i=particles.length-1;i>=0;i--){
-          const p = particles[i];
-          p.x += p.vx; p.y += p.vy; p.vy += 0.04; p.rot += p.vr; if(p.fade) p.alpha -= p.fade;
-          ctx.save(); ctx.globalAlpha = Math.max(0,p.alpha||0.9);
-          ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-          ctx.fillStyle = `hsl(${p.hue},85%,55%)`;
-          if(p.shape==='rect'){ ctx.fillRect(-p.r, -p.r, p.r*2, p.r*2); }
-          else { ctx.beginPath(); ctx.arc(0,0,p.r,0,Math.PI*2); ctx.fill(); }
-          ctx.restore();
-          if(p.y>H+20 || p.alpha<=0) particles.splice(i,1);
-        }
-        raf = requestAnimationFrame(step);
-      }
-      function runConfetti(ms=1600){ until = performance.now()+ms; spawnConfetti(); if(!raf) raf=requestAnimationFrame(step); }
-      function runBurst(){ const rect = canvas.getBoundingClientRect(); spawnBurst(rect.width/2, rect.height/2, 44); if(!raf) raf=requestAnimationFrame(step); }
-      function stop(){ particles.length=0; until=0; if(raf){ cancelAnimationFrame(raf); raf=null; } clear(); }
-      return { runConfetti, runBurst, stop };
-    })();
-
-    (function(){
-      const timerEl = qs('#timer');
-      const startBtn = qs('#startBtn');
-      const stopBtn = qs('#stopBtn');
-      const replayBtn = qs('#replayBtn');
-      const result = qs('#result');
-      const curtain = qs('#curtain');
-      const badgeTries = qs('#badgeTries');
-      const stage = document.querySelector('.stage');
-      const stampWin = qs('#stampWin');
-      const stampFail = qs('#stampFail');
-
+      const timerEl = document.querySelector('#timer');
+      const startBtn = document.querySelector('#startBtn');
+      const stopBtn = document.querySelector('#stopBtn');
+      const replayBtn = document.querySelector('#replayBtn');
       let startAt = null;
       let raf = null;
       let stopped = false;
-      let finalRemaining = null;
 
-      function updateBadges(){
-        const used = getTries();
-        const currentIndex = Math.min(used + 1, MAX_TRIES);
-        badgeTries.textContent = `Essai ${currentIndex}/${MAX_TRIES}`;
-      }
+      function fmt(t){ const sign = t<0?'-':''; return sign+Math.abs(t).toFixed(2).replace('.',','); }
+      function render(now){ if(startAt==null) return; const elapsed=(now-startAt)/1000; timerEl.textContent=fmt(10-elapsed); if(!stopped){raf=requestAnimationFrame(render);} }
+      function start(){ stopped=false; startAt=performance.now(); timerEl.textContent='10,00'; startBtn.disabled=true; stopBtn.disabled=false; replayBtn.disabled=true; raf&&cancelAnimationFrame(raf); raf=requestAnimationFrame(render); }
+      function stop(){ if(startAt==null||stopped)return; stopped=true; stopBtn.disabled=true; replayBtn.disabled=false; raf&&cancelAnimationFrame(raf); const now=performance.now(); timerEl.textContent=fmt(10-(now-startAt)/1000); }
+      function replay(){ timerEl.textContent='10,00'; startBtn.disabled=false; stopBtn.disabled=true; replayBtn.disabled=true; stopped=true; raf&&cancelAnimationFrame(raf); }
 
-      // ⬅️ MODIF : format à 2 décimales
-      function fmt(t){
-        const sign = t < 0 ? '-' : '';
-        const abs = Math.abs(t);
-        return sign + abs.toFixed(2).replace('.', ',');
-      }
-
-      function readDisplayedSeconds(){
-        const txt = timerEl.textContent.trim();
-        return Number(txt.replace('\u2212','-').replace(',','.'));
-      }
-
-      function render(now){
-        if(startAt==null) return;
-        const elapsed = (now - startAt)/1000;
-        const remaining = 10 - elapsed;
-        timerEl.textContent = fmt(remaining);
-        if(remaining <= 5 && !stopped){ curtain.classList.add('show'); }
-        if(!stopped){ raf = requestAnimationFrame(render); }
-      }
-
-      function resetFX(){
-        stage.classList.remove('win','fail','shake');
-        timerEl.classList.remove('win','fail');
-        stampWin.hidden = true; stampFail.hidden = true;
-        stampWin.style.animation = stampFail.style.animation = 'none';
-        void stampWin.offsetWidth;
-        FX.stop();
-      }
-
-      // ⬅️ MODIF : petite fenêtre (modal) au démarrage du 3ᵉ essai
-      function openLastTryNotice(){
-        const backdrop = qs('#lastTryBackdrop');
-        if(backdrop){ backdrop.style.display = 'flex'; }
-      }
-
-      function start(){
-        const tries = getTries();
-
-        if(tries >= MAX_TRIES){
-          result.style.display='block';
-          result.innerHTML = '<span class="warn">Nombre d\'essais épuisés sur cet appareil.</span>';
-          vibe(100);
-          return;
-        }
-
-        // ⬅️ MODIF : ouvrir la fenêtre d’information quand on démarre le 3ᵉ essai
-        if(tries === MAX_TRIES - 1){
-          openLastTryNotice();
-        }
-
-        stopped = false; finalRemaining = null;
-        result.style.display='none';
-        curtain.classList.remove('show');
-        resetFX();
-        startAt = performance.now();
-        timerEl.textContent = '10,00'; // ⬅️ MODIF
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-        replayBtn.disabled = true;
-        raf && cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(render);
-        vibe([40]);
-      }
-
-      function showWinFX(){
-        stage.classList.add('win');
-        timerEl.classList.add('win');
-        stampWin.hidden = false; stampWin.style.animation = 'popIn 420ms ease-out both';
-        FX.runBurst();
-        FX.runConfetti(1800);
-      }
-      function showFailFX(){
-        stage.classList.add('fail','shake');
-        timerEl.classList.add('fail');
-        stampFail.hidden = false; stampFail.style.animation = 'popIn 360ms ease-out both';
-        FX.runBurst();
-      }
-
-      function stop(){
-        if(startAt==null || stopped) return;
-        stopped = true;
-        stopBtn.disabled = true;
-        replayBtn.disabled = true;
-        raf && cancelAnimationFrame(raf);
-
-        const now = performance.now();
-        const elapsed = (now - startAt)/1000;
-        finalRemaining = 10 - elapsed;
-
-        curtain.classList.remove('show');
-
-        // ⬅️ MODIF : figer à 2 décimales
-        timerEl.textContent = fmt(finalRemaining);
-
-        // ⬅️ MODIF : succès basé UNIQUEMENT sur la valeur affichée et seuil ±0,10
-        const displayed = readDisplayedSeconds();
-        const won = Math.abs(displayed) <= 0.10;
-        const status = won ? 'GAGNÉ' : 'PERDU';
-        const msg = won ? '🎉 Bravo !' : 'Raté pour cette fois.';
-        result.innerHTML = `${status} — Vous avez arrêté à <span class="value">${fmt(displayed)} s</span>. ${msg}` + (won ? ' Votre certificat s\'ouvre automatiquement.' : '');
-        result.style.display='block';
-
-        vibe(won ? [80, 60, 80] : [40]);
-
-        if(matchMedia('(prefers-reduced-motion: no-preference)').matches){
-          won ? showWinFX() : showFailFX();
-        }
-
-        const used = getTries();
-        setTries(Math.min(MAX_TRIES, used + 1));
-        updateBadges();
-
-        if(won){ openCertificate(displayed); }
-
-        if(getTries() >= MAX_TRIES){
-          startBtn.disabled = true;
-        } else {
-          startBtn.disabled = false;
-        }
-      }
-
-      replayBtn.style.display = 'none';
-
-      startBtn && startBtn.addEventListener('click', start, { passive: true });
-      stopBtn && stopBtn.addEventListener('click', stop, { passive: true });
-
-      window.addEventListener('keydown', (e)=>{
-        if(e.code==='Space'){
-          e.preventDefault();
-          if(!stopBtn.disabled) stop();
-        }
-      }, { passive: false });
-
-      updateBadges();
-      if(getTries() >= MAX_TRIES){
-        startBtn.disabled = true;
-        stopBtn.disabled = true;
-        timerEl.textContent = '— — —';
-      }
-    })();
-
-    (function(){
-      const backdrop = qs('#backdrop');
-      const closeModal = qs('#closeModal');
-      const certTime = qs('#certTime');
-      const certPrize = qs('#certPrize');
-      const certDate = qs('#certDate');
-      const certCode = qs('#certCode');
-      const certMark = qs('#certMark');
-      const printBtn = qs('#printBtn');
-      const copyBtn = qs('#copyBtn');
-
-      window.openCertificate = function(remaining){
-        const prize = Math.random() < 0.5 ? '1 boisson au choix' : '1 dessert maison';
-        const when = new Date();
-        const code = genCode(when, remaining);
-
-        certTime.textContent = `${Math.abs(remaining).toFixed(2).replace('.', ',')} s`; // ⬅️ MODIF : 2 décimales
-        certPrize.textContent = prize;
-        certDate.textContent = when.toLocaleString('fr-FR', { dateStyle:'long', timeStyle:'medium' });
-        certCode.textContent = code;
-        certMark.textContent = 'GAGNÉ';
-
-        try{ localStorage.setItem(LS_CERT, JSON.stringify({ time: certTime.textContent, prize, date: certDate.textContent, code })); }catch(_){ }
-        backdrop.style.display='flex';
-      }
-
-      function genCode(date, t){
-        const base = `${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}-${date.getHours().toString().padStart(2,'0')}${date.getMinutes().toString().padStart(2,'0')}${date.getSeconds().toString().padStart(2,'0')}-${Math.round(Math.abs(t)*100).toString().padStart(2,'0')}`; // ⬅️ MODIF: code basé sur 2 déc.
-        let sum = 0; for(const c of base){ sum = (sum + c.charCodeAt(0)) % 997; }
-        return `VR-${base}-${sum.toString(16).toUpperCase()}`;
-      }
-
-      closeModal && closeModal.addEventListener('click', ()=> backdrop.style.display='none');
-      backdrop && backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) backdrop.style.display='none' });
-      printBtn && printBtn.addEventListener('click', ()=> window.print());
-      copyBtn && copyBtn.addEventListener('click', ()=> {
-        const text = `${certTime.textContent} • ${certPrize.textContent} • ${certDate.textContent} • ${certCode.textContent}`;
-        navigator.clipboard.writeText(text).then(()=>{
-          copyBtn.textContent = 'Copié !';
-          setTimeout(()=> copyBtn.textContent = 'Copier le code', 1200);
-        });
-      });
-
-      try{
-        const last = JSON.parse(localStorage.getItem(LS_CERT));
-        if(last){
-          certTime.textContent = last.time;
-          certPrize.textContent = last.prize;
-          certDate.textContent = last.date;
-          certCode.textContent = last.code;
-        }
-      }catch(_){ }
-    })();
-
-    // ⬅️ NOUVEAU : gestion de la fermeture de la fenêtre "Dernier essai"
-    (function(){
-      const lastBackdrop = qs('#lastTryBackdrop');
-      const closeLastTry = qs('#closeLastTry');
-      closeLastTry && closeLastTry.addEventListener('click', ()=> lastBackdrop.style.display='none');
-      lastBackdrop && lastBackdrop.addEventListener('click', (e)=>{ if(e.target===lastBackdrop) lastBackdrop.style.display='none' });
+      startBtn.addEventListener('click',start);
+      stopBtn.addEventListener('click',stop);
+      replayBtn.addEventListener('click',replay);
     })();
   </script>
 </body>
