@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Le Village Ronsard — Jeu Chrono</title>
+  <meta name="description" content="Jeu de précision chronométré — Le Village Ronsard, Paris" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --green:#0f3d2e;
+      --green-2:#155643;
+      --gold:#b8902e;
+      --cream:#f7f2e9;
+      --ink:#1d1d1b;
+      --shadow: 0 10px 30px rgba(0,0,0,.15);
+    }
+    html,body{height:100%}
+    body{
+      margin:0; background:
+        radial-gradient(80% 60% at 100% -10%, rgba(255,255,255,.25), transparent 60%),
+        radial-gradient(75% 60% at 0% 110%, rgba(255,255,255,.25), transparent 60%),
+        linear-gradient(160deg, #103228 0%, #0c2a21 100%);
+      color:var(--cream);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      min-height:100vh; display:flex; align-items:center; justify-content:center;
+    }
+
+    /* Gate message */
+    .message{ max-width:680px; background:var(--cream); color:var(--ink); border-radius:20px; box-shadow:var(--shadow); padding:28px; text-align:center; margin:20px }
+    h1{ font-family:"Playfair Display", serif; color:var(--green); font-size:clamp(26px,4vw,34px); margin:0 0 10px }
+    p{ font-size:16px; line-height:1.6 }
+    .btn{ display:inline-block; margin-top:16px; padding:12px 20px; font-weight:700; text-decoration:none; border-radius:999px; background:var(--green); color:var(--cream); box-shadow:0 8px 24px rgba(15,61,46,.35); transition:.2s box-shadow }
+    .btn:hover{ box-shadow:0 10px 30px rgba(15,61,46,.45) }
+    .hint{ font-size:13px; opacity:.75; margin-top:8px }
+
+    /* Game layout */
+    .wrap{max-width:980px;margin:0 auto;padding:24px;display:none;width:100%}
+    header{display:flex;align-items:center;gap:16px;margin:16px 0 24px}
+    .brandmark{width:56px;height:56px;border:2px solid var(--gold);border-radius:50%;display:grid;place-items:center;font-family:"Playfair Display", serif;color:var(--gold);font-weight:700}
+    .subtitle{opacity:.9;margin-top:4px}
+
+    .card{background:var(--cream);color:var(--ink);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+    .card .head{background:linear-gradient(180deg, var(--green) 0%, var(--green-2) 100%); color:var(--cream); padding:18px 22px;display:flex;align-items:center;justify-content:space-between}
+    .badge{border:1px solid rgba(255,255,255,.45);padding:6px 10px;border-radius:999px;font-size:12px}
+    .body{padding:22px}
+
+    .btn-ghost{background:transparent;border:1px solid var(--green);color:var(--green)}
+    .btn-gold{background:var(--gold); color:#241d0f}
+
+    .game{margin-top:0}
+    .timer{font-family:"Playfair Display", serif;font-size:clamp(56px,10vw,120px);text-align:center;margin:12px 0;color:var(--green)}
+    .controls{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+    .panel{display:grid;gap:14px;grid-template-columns:1fr;max-width:760px;margin:0 auto}
+    .rules{font-size:15px;line-height:1.6;background:#fff;border:1px dashed #d7c9a4;border-radius:14px;padding:16px}
+
+    .stage{position:relative;background:linear-gradient(180deg,#fff, #fbf7ef);border-radius:18px;border:1px solid #e8e1cf;min-height:220px;display:grid;place-items:center;overflow:hidden}
+    .curtain{position:absolute;inset:0;background:linear-gradient(180deg, rgba(15,61,46,.97), rgba(15,61,46,.98));transform:translateY(-100%);transition:transform .5s ease;display:grid;place-items:center}
+    .curtain.show{transform:translateY(0)}
+    .curtain:after{content:"⟨ Le temps est caché ⟩";color:#d9d1bd;font-family:"Playfair Display",serif;font-size:clamp(16px,2.5vw,20px);letter-spacing:.5px}
+
+    .result{display:none;margin-top:16px; padding:14px 16px; border-radius:12px; background:#f3efe6; border:1px solid #e0d6bd}
+    .result .value{font-weight:800}
+
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px}
+    .modal{width:min(680px,100%);background:#fff;border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+    .ticket{position:relative;padding:22px}
+    .ticket:before,.ticket:after{content:"";position:absolute;top:0;bottom:0;width:22px;background:repeating-linear-gradient(180deg, #f7f2e9 0 12px, #efe7d6 12px 24px)}
+    .ticket:before{left:-12px;border-right:1px dashed #d4c6a3;border-top-left-radius:16px;border-bottom-left-radius:16px}
+    .ticket:after{right:-12px;border-left:1px dashed #d4c6a3;border-top-right-radius:16px;border-bottom-right-radius:16px}
+    .certhead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .certhead h3{margin:0;font-family:"Playfair Display",serif;font-size:26px;color:var(--green)}
+    .certbody{margin-top:10px;display:grid;gap:8px}
+    .row{display:flex;align-items:center;justify-content:space-between;border-bottom:1px dashed #e7dcc2;padding:8px 0}
+    .row b{color:#2a2a26}
+    .certfoot{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+    .mark{display:inline-block;border:2px solid var(--green);color:var(--green);padding:6px 10px;border-radius:8px;font-weight:700}
+    .print-hint{font-size:12px;opacity:.75;margin-top:6px}
+
+    @media (max-width:560px){
+      .row{flex-direction:column;align-items:flex-start;gap:4px}
+      .certfoot{flex-direction:column;align-items:flex-start;gap:8px}
+    }
+
+    @media print{
+      body{background:#fff}
+      #gate, .backdrop{display:none}
+    }
+  </style>
+</head>
+<body>
+  <!-- Écran d'accès (un seul bouton) -->
+  <section id="gate" class="message" aria-live="polite" aria-atomic="true">
+    <h1>Le Village Ronsard — Jeu Chrono</h1>
+    <p>
+      Pour débloquer le jeu, cliquez sur le bouton ci-dessous et laissez un avis sur Google Maps.
+      Le jeu ne sera accessible qu’après cette étape.
+    </p>
+    <a class="btn" id="openMaps" target="_blank" rel="noopener"
+       href="https://www.google.fr/maps/place/Le+Village+Ronsard/@48.8502034,2.3480831,19z/data=!4m11!1m2!2m1!1smaubert+mutualit%C3%A9!3m7!1s0x47e671e6be62f4e1:0x6c4ad3222a595bd!8m2!3d48.8498161!4d2.3481585!9m1!1b1!16s%2Fg%2F1tkbxjsm!5m1!1e1?entry=ttu&g_ep=EgoyMDI1MDkxMC4wIKXMDSoASAFQAw%3D%3D">Laisser un avis Google</a>
+    <div class="hint">Le jeu se déverrouillera automatiquement après ouverture de la page d’avis.</div>
+  </section>
+
+  <!-- JEU (caché tant que non débloqué) -->
+  <div class="wrap" id="app" hidden>
+    <header>
+      <div class="brandmark" aria-hidden="true">VR</div>
+      <div>
+        <h1 style="margin:0">Le Village Ronsard</h1>
+        <div class="subtitle">Jeu Chrono — Paris 5ᵉ • Précision & gourmandise</div>
+      </div>
+    </header>
+
+    <section class="card game" id="game">
+      <div class="head">
+        <div>
+          <strong>Jeu Chrono</strong>
+          <div class="badge">Objectif : arrêter à <b>0,000 s</b> (tolérance 0,100 s)</div>
+        </div>
+        <div class="badge">Récompense : dessert 🍰 ou boisson 🥤</div>
+      </div>
+      <div class="body">
+        <div class="panel">
+          <div class="stage" aria-live="polite" aria-atomic="true">
+            <div class="timer" id="timer">10,000</div>
+            <div class="curtain" id="curtain" aria-hidden="true"></div>
+          </div>
+          <div class="controls">
+            <button class="btn" style="background:var(--green);color:var(--cream)" id="startBtn">Démarrer</button>
+            <button class="btn btn-gold" id="stopBtn" disabled>STOP</button>
+            <button class="btn btn-ghost" id="replayBtn" disabled>Rejouer</button>
+          </div>
+          <div class="rules">
+            <b>Règles :</b>
+            <ul>
+              <li>Un décompte démarre à <b>10,000 s</b>.</li>
+              <li>À <b>5 s</b> restantes, un rideau masque le temps.</li>
+              <li>Appuyez sur <b>STOP</b> au moment que vous jugez le plus proche de zéro.</li>
+              <li>Si vous êtes entre <b>0,000 s</b> et <b>0,100 s</b>, vous gagnez. Si vous dépassez 0, le chrono passe en négatif.</li>
+            </ul>
+          </div>
+          <div class="result" id="result"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- MODAL CERTIFICAT -->
+  <div class="backdrop" id="backdrop" role="dialog" aria-modal="true" aria-labelledby="certTitle">
+    <div class="modal" role="document">
+      <div class="head" style="padding:14px 18px">
+        <strong id="certTitle">Certificat de gain</strong>
+        <button class="btn btn-ghost" id="closeModal">Fermer</button>
+      </div>
+      <div class="body" style="padding:18px">
+        <div class="ticket">
+          <div class="certhead">
+            <h3>Le Village Ronsard — Paris</h3>
+            <span class="mark" id="certMark">GAGNÉ</span>
+          </div>
+          <div class="certbody">
+            <div class="row"><span><b>Résultat</b></span><span id="certTime">—</span></div>
+            <div class="row"><span><b>Gain</b></span><span id="certPrize">—</span></div>
+            <div class="row"><span><b>Date & heure</b></span><span id="certDate">—</span></div>
+            <div class="row"><span><b>Code</b></span><span id="certCode">—</span></div>
+          </div>
+          <div class="certfoot">
+            <small class="print-hint">Présenter ce certificat au comptoir le jour même. Non échangeable, 1 utilisation.</small>
+            <div style="display:flex;gap:8px">
+              <button class="btn" style="background:var(--green);color:var(--cream)" id="printBtn">Imprimer</button>
+              <button class="btn btn-ghost" id="copyBtn">Copier le code</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==== GATE LOGIC (single button) ====
+    (function(){
+      const LS_KEY = 'village_ronsard_gate_unlocked_v2';
+      const gate = document.getElementById('gate');
+      const app = document.getElementById('app');
+      const openMaps = document.getElementById('openMaps');
+
+      function unlock(){ localStorage.setItem(LS_KEY, JSON.stringify({at: Date.now()})); render(); }
+      function isUnlocked(){ try{ return !!JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ return false } }
+
+      function render(){
+        const unlocked = isUnlocked();
+        if(unlocked){
+          gate.style.display = 'none';
+          app.hidden = false; app.style.display='block';
+          document.body.style.alignItems = 'flex-start';
+        } else {
+          gate.style.display = 'block';
+          app.hidden = true; app.style.display='none';
+          document.body.style.alignItems = 'center';
+        }
+      }
+
+      openMaps.addEventListener('click', ()=>{
+        // Marque l'étape comme passée dès le clic (respect de la demande : aucun autre bouton)
+        unlock();
+        // Ouvre déjà le jeu si l'utilisateur reste sur l'onglet
+        setTimeout(render, 300);
+      });
+
+      // Option de réinitialisation via query (?reset=1) pour tests internes uniquement
+      try{
+        const u = new URL(location.href);
+        if(u.searchParams.get('reset')==='1') localStorage.removeItem(LS_KEY);
+      }catch(e){}
+
+      render();
+    })();
+
+    // ==== GAME LOGIC ====
+    (function(){
+      const timerEl = document.getElementById('timer');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const replayBtn = document.getElementById('replayBtn');
+      const result = document.getElementById('result');
+      const curtain = document.getElementById('curtain');
+
+      let startAt = null; // ms
+      let raf = null;
+      let stopped = false;
+
+      function fmt(t){
+        const sign = t < 0 ? '-' : '';
+        const abs = Math.abs(t);
+        return sign + abs.toFixed(3).replace('.', ',');
+      }
+
+      function render(now){
+        if(startAt==null) return;
+        const elapsed = (now - startAt)/1000;
+        let remaining = 10 - elapsed; // secondes
+
+        timerEl.textContent = fmt(remaining);
+
+        if(remaining <= 5 && !stopped){
+          curtain.classList.add('show');
+        }
+
+        if(!stopped){ raf = requestAnimationFrame(render); }
+      }
+
+      function start(){
+        stopped = false;
+        result.style.display='none';
+        curtain.classList.remove('show');
+        startAt = performance.now();
+        timerEl.textContent = '10,000';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        replayBtn.disabled = true;
+        raf && cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(render);
+      }
+
+      function stop(){
+        if(startAt==null || stopped) return;
+        stopped = true;
+        stopBtn.disabled = true;
+        replayBtn.disabled = false;
+        raf && cancelAnimationFrame(raf);
+
+        const now = performance.now();
+        const elapsed = (now - startAt)/1000;
+        let remaining = 10 - elapsed; // s
+
+        curtain.classList.remove('show');
+
+        const won = remaining >= 0 && remaining <= 0.100;
+        const txt = `Vous avez arrêté à <span class="value">${fmt(remaining)} s</span>. ` + (won ? '🎉 Bravo !' : 'Pas loin…');
+        result.innerHTML = txt + (won ? ' Cliquez pour afficher votre certificat.' : ' Appuyez sur « Rejouer » pour retenter.');
+        result.style.display='block';
+
+        if(won){
+          result.style.cursor='pointer';
+          result.onclick = () => openCertificate(remaining);
+          openCertificate(remaining);
+        }else{
+          result.style.cursor='default';
+          result.onclick = null;
+        }
+      }
+
+      function replay(){
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        replayBtn.disabled = true;
+        timerEl.textContent = '10,000';
+        result.style.display='none';
+      }
+
+      startBtn && startBtn.addEventListener('click', start);
+      stopBtn && stopBtn.addEventListener('click', stop);
+      replayBtn && replayBtn.addEventListener('click', replay);
+
+      window.addEventListener('keydown', (e)=>{
+        if(e.code==='Space'){
+          e.preventDefault();
+          if(!stopBtn.disabled) stop();
+        }
+      });
+    })();
+
+    // ==== CERTIFICATE MODAL ====
+    (function(){
+      const backdrop = document.getElementById('backdrop');
+      const closeModal = document.getElementById('closeModal');
+      const certTime = document.getElementById('certTime');
+      const certPrize = document.getElementById('certPrize');
+      const certDate = document.getElementById('certDate');
+      const certCode = document.getElementById('certCode');
+      const certMark = document.getElementById('certMark');
+      const printBtn = document.getElementById('printBtn');
+      const copyBtn = document.getElementById('copyBtn');
+
+      window.openCertificate = function(remaining){
+        const prize = Math.random() < 0.5 ? '1 boisson au choix' : '1 dessert maison';
+        const when = new Date();
+        const code = genCode(when, remaining);
+
+        certTime.textContent = `${remaining.toFixed(3).replace('.', ',')} s`;
+        certPrize.textContent = prize;
+        certDate.textContent = when.toLocaleString('fr-FR', { dateStyle:'long', timeStyle:'medium' });
+        certCode.textContent = code;
+        certMark.textContent = 'GAGNÉ';
+
+        backdrop.style.display='flex';
+      }
+
+      function genCode(date, t){
+        const base = `${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}-${date.getHours().toString().padStart(2,'0')}${date.getMinutes().toString().padStart(2,'0')}${date.getSeconds().toString().padStart(2,'0')}-${Math.round(Math.abs(t)*1000).toString().padStart(3,'0')}`;
+        let sum = 0; for(const c of base){ sum = (sum + c.charCodeAt(0)) % 997; }
+        return `VR-${base}-${sum.toString(16).toUpperCase()}`;
+      }
+
+      closeModal && closeModal.addEventListener('click', ()=> backdrop.style.display='none');
+      backdrop && backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) backdrop.style.display='none' });
+      printBtn && printBtn.addEventListener('click', ()=> window.print());
+      copyBtn && copyBtn.addEventListener('click', ()=> {
+        const text = `${certTime.textContent} • ${certPrize.textContent} • ${certDate.textContent} • ${certCode.textContent}`;
+        navigator.clipboard.writeText(text).then(()=>{
+          copyBtn.textContent = 'Copié !';
+          setTimeout(()=> copyBtn.textContent = 'Copier le code', 1200);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
