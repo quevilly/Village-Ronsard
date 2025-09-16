@@ -55,7 +55,7 @@
     .body{padding:16px}
 
     .game{margin-top:0}
-    .timer{font-family:"Playfair Display", serif;font-size:clamp(64px,15vw,128px);text-align:center;margin:8px 0;color:var(--green)}
+    .timer{font-family:"Playfair Display", serif;font-size:clamp(64px,15vw,128px);text-align:center;margin:8px 0;color:var(--green);transition: transform .25s ease, color .25s ease, text-shadow .25s ease}
     .controls{position:sticky;bottom:0;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:8px 0 0}
     .controls .btn{flex:1 1 220px;min-height:56px;padding-block:18px}
 
@@ -66,10 +66,28 @@
     .curtain{position:absolute;inset:0;background:linear-gradient(180deg, rgba(15,61,46,.97), rgba(15,61,46,.98));transform:translateY(-100%);transition:transform .5s ease;display:grid;place-items:center}
     @media (prefers-reduced-motion: reduce){ .curtain{ transition:none } }
     .curtain.show{transform:translateY(0)}
-    .curtain:after{content:"⟨ Le temps est caché ⟩";color:#d9d1bd;font-family:"Playfair Display",serif;font-size:clamp(16px,4vw,20px);letter-spacing:.4px}
+    .curtain:after{content:"Appuie sur stop quand tu penses que c'est bon!";color:#d9d1bd;font-family:"Playfair Display",serif;font-size:clamp(16px,4vw,20px);letter-spacing:.4px}
 
     .result{display:none;margin-top:8px; padding:12px 14px; border-radius:12px; background:#f3efe6; border:1px solid #e0d6bd}
     .result .value{font-weight:800}
+
+    /* FX canvas + overlays */
+    #fx{position:absolute;inset:0;pointer-events:none}
+    .overlay{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+    .stamp{display:inline-grid;place-items:center;gap:8px;padding:16px 22px;border-radius:999px;font-weight:900;letter-spacing:.06em;filter:drop-shadow(0 6px 18px rgba(0,0,0,.18));opacity:0;transform:scale(.8)}
+    .stamp.win{background:rgba(21,86,67,.08);border:3px solid #1e8a6b;color:#0f573f}
+    .stamp.fail{background:rgba(158,28,28,.08);border:3px solid #c43a3a;color:#8e1717}
+
+    @keyframes popIn { from { opacity:0; transform:scale(.8) rotate(-4deg)} 50%{opacity:1; transform:scale(1.06) rotate(2deg)} to {opacity:1; transform:scale(1) rotate(0)} }
+    @keyframes shake { 0%,100%{ transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+    @keyframes flashRed { from { box-shadow:inset 0 0 0 0 rgba(196,58,58,.0)} 50%{ box-shadow:inset 0 0 0 8px rgba(196,58,58,.18)} to { box-shadow:inset 0 0 0 0 rgba(196,58,58,.0)} }
+    @keyframes glowRing { from { box-shadow:0 0 0 0 rgba(30,138,107,.0), 0 0 0 0 rgba(30,138,107,.0) } 50%{ box-shadow:0 0 0 14px rgba(30,138,107,.12), 0 0 0 28px rgba(30,138,107,.06)} to { box-shadow:0 0 0 0 rgba(30,138,107,.0), 0 0 0 0 rgba(30,138,107,.0) } }
+
+    .stage.win{animation: glowRing 1000ms ease-out 1}
+    .stage.fail{animation: flashRed 500ms ease-out 1}
+    .timer.win{color:#0f573f; text-shadow:0 6px 24px rgba(15,87,63,.22)}
+    .timer.fail{color:#8e1717; text-shadow:0 6px 24px rgba(142,23,23,.25)}
+    .shake{animation: shake 420ms ease-out 1}
 
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px}
     .modal{width:min(680px,100%);background:#fff;border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
@@ -89,10 +107,7 @@
     /* Accessibility helpers */
     .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
-    @media (max-width:480px){
-      .row{flex-direction:column;align-items:flex-start}
-    }
-
+    @media (max-width:480px){ .row{flex-direction:column;align-items:flex-start} }
     @media print{ body{background:#fff} #gate, .backdrop{display:none} }
   </style>
 </head>
@@ -140,6 +155,21 @@
       <div class="body">
         <div class="panel">
           <div class="stage" aria-live="polite" aria-atomic="true">
+            <canvas id="fx"></canvas>
+            <div class="overlay" aria-hidden="true">
+              <div id="stampWin" class="stamp win" role="img" aria-label="Gagné" hidden>
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>GAGNÉ</span>
+              </div>
+              <div id="stampFail" class="stamp fail" role="img" aria-label="Perdu" hidden>
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <span>PERDU</span>
+              </div>
+            </div>
             <div class="timer" id="timer" aria-label="Temps restant">10,000</div>
             <div class="curtain" id="curtain" aria-hidden="true"></div>
           </div>
@@ -257,6 +287,66 @@
       render();
     })();
 
+    // ====== FX ENGINE (confetti + bursts) ======
+    const FX = (function(){
+      const stage = qs('.stage');
+      const canvas = qs('#fx');
+      const ctx = canvas.getContext('2d');
+      let W=0, H=0, raf=null, particles=[]; let until=0;
+
+      function resize(){
+        const rect = stage.getBoundingClientRect();
+        W = canvas.width = Math.floor(rect.width * devicePixelRatio);
+        H = canvas.height = Math.floor(rect.height * devicePixelRatio);
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+      }
+      new ResizeObserver(resize).observe(stage);
+
+      function spawnConfetti(n=120){
+        for(let i=0;i<n;i++){
+          particles.push({
+            x: Math.random()*W, y: -20, r: 2+Math.random()*4,
+            vx: (Math.random()-.5)*2.4, vy: 2+Math.random()*2.5,
+            rot: Math.random()*Math.PI, vr: (Math.random()-.5)*0.2,
+            shape: (Math.random()<.5?'rect':'circ'),
+            hue: 20 + Math.random()*60,
+            alpha: .9
+          });
+        }
+      }
+      function spawnBurst(x,y,n=40){
+        for(let i=0;i<n;i++){
+          const a = (i/n)*Math.PI*2;
+          const sp = 2.5+Math.random()*2.5;
+          particles.push({x,y,r:2+Math.random()*3,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,rot:0,vr:0.02,shape:'circ',hue:140+Math.random()*40,alpha:1,fade:.02});
+        }
+      }
+      function clear(){ ctx.clearRect(0,0,W,H); }
+      function step(){
+        const now = performance.now();
+        if(now>until && particles.length===0){ raf=null; return; }
+        clear();
+        for(let i=particles.length-1;i>=0;i--){
+          const p = particles[i];
+          p.x += p.vx; p.y += p.vy; p.vy += 0.04; p.rot += p.vr; if(p.fade) p.alpha -= p.fade;
+          ctx.save(); ctx.globalAlpha = Math.max(0,p.alpha||0.9);
+          ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+          ctx.fillStyle = `hsl(${p.hue},85%,55%)`;
+          if(p.shape==='rect'){ ctx.fillRect(-p.r, -p.r, p.r*2, p.r*2); }
+          else { ctx.beginPath(); ctx.arc(0,0,p.r,0,Math.PI*2); ctx.fill(); }
+          ctx.restore();
+          if(p.y>H+20 || p.alpha<=0) particles.splice(i,1);
+        }
+        raf = requestAnimationFrame(step);
+      }
+      function runConfetti(ms=1600){ until = performance.now()+ms; spawnConfetti(); if(!raf) raf=requestAnimationFrame(step); }
+      function runBurst(){ const rect = canvas.getBoundingClientRect(); spawnBurst(rect.width/2, rect.height/2, 44); if(!raf) raf=requestAnimationFrame(step); }
+      function stop(){ particles.length=0; until=0; if(raf){ cancelAnimationFrame(raf); raf=null; } clear(); }
+      return { runConfetti, runBurst, stop };
+    })();
+
     // ====== GAME LOGIC ======
     (function(){
       const timerEl = qs('#timer');
@@ -266,6 +356,9 @@
       const result = qs('#result');
       const curtain = qs('#curtain');
       const badgeTries = qs('#badgeTries');
+      const stage = document.querySelector('.stage');
+      const stampWin = qs('#stampWin');
+      const stampFail = qs('#stampFail');
 
       let startAt = null; // ms
       let raf = null;
@@ -284,20 +377,34 @@
         return sign + abs.toFixed(3).replace('.', ',');
       }
 
+      // === AJOUT : lecture de la valeur affichée ===
+      function readDisplayedSeconds(){
+        const txt = timerEl.textContent.trim();
+        return Number(txt.replace('\u2212','-').replace(',','.'));
+      }
+
       function render(now){
         if(startAt==null) return;
         const elapsed = (now - startAt)/1000;
         const remaining = 10 - elapsed; // secondes
-        // On affiche la valeur courante pendant l'animation; la valeur finale sera figée dans stop()
         timerEl.textContent = fmt(remaining);
         if(remaining <= 5 && !stopped){ curtain.classList.add('show'); }
         if(!stopped){ raf = requestAnimationFrame(render); }
       }
 
+      function resetFX(){
+        stage.classList.remove('win','fail','shake');
+        timerEl.classList.remove('win','fail');
+        stampWin.hidden = true; stampFail.hidden = true;
+        stampWin.style.animation = stampFail.style.animation = 'none';
+        // force reflow to allow replay
+        void stampWin.offsetWidth;
+        FX.stop();
+      }
+
       function start(){
         const tries = getTries();
         if(tries >= MAX_TRIES){
-          // Essais épuisés
           result.style.display='block';
           result.innerHTML = '<span class="warn">Nombre d\'essais épuisés sur cet appareil.</span>';
           vibe(100);
@@ -306,6 +413,7 @@
         stopped = false; finalRemaining = null;
         result.style.display='none';
         curtain.classList.remove('show');
+        resetFX();
         startAt = performance.now();
         timerEl.textContent = '10,000';
         startBtn.disabled = true;
@@ -314,6 +422,21 @@
         raf && cancelAnimationFrame(raf);
         raf = requestAnimationFrame(render);
         vibe([40]); // signal de départ
+      }
+
+      function showWinFX(){
+        stage.classList.add('win');
+        timerEl.classList.add('win');
+        stampWin.hidden = false; stampWin.style.animation = 'popIn 420ms ease-out both';
+        FX.runBurst();
+        FX.runConfetti(1800);
+      }
+      function showFailFX(){
+        stage.classList.add('fail','shake');
+        timerEl.classList.add('fail');
+        stampFail.hidden = false; stampFail.style.animation = 'popIn 360ms ease-out both';
+        // petite pluie d'éclats rouges
+        FX.runBurst();
       }
 
       function stop(){
@@ -332,21 +455,28 @@
         // FIGE l'affichage du grand chrono sur la même valeur que le calcul
         timerEl.textContent = fmt(finalRemaining);
 
-        const won = finalRemaining >= 0 && finalRemaining <= 0.100;
+        // === NOUVELLE logique basée sur la valeur AFFICHÉE ===
+        const displayed = readDisplayedSeconds();
+        const won = Math.abs(displayed) <= 0.100;
         const status = won ? 'GAGNÉ' : 'PERDU';
         const msg = won ? '🎉 Bravo !' : 'Raté pour cette fois.';
-        result.innerHTML = `${status} — Vous avez arrêté à <span class="value">${fmt(finalRemaining)} s</span>. ${msg}` + (won ? ' Votre certificat s\'ouvre automatiquement.' : '');
+        result.innerHTML = `${status} — Vous avez arrêté à <span class="value">${fmt(displayed)} s</span>. ${msg}` + (won ? ' Votre certificat s\'ouvre automatiquement.' : '');
         result.style.display='block';
 
         // Haptique selon résultat
         vibe(won ? [80, 60, 80] : [40]);
+
+        // Nouveaux FX
+        if(matchMedia('(prefers-reduced-motion: no-preference)').matches){
+          won ? showWinFX() : showFailFX();
+        }
 
         // Incrémente le compteur d'essais à la fin de l'essai (quel que soit le résultat)
         const used = getTries();
         setTries(Math.min(MAX_TRIES, used + 1));
         updateBadges();
 
-        if(won){ openCertificate(finalRemaining); }
+        if(won){ openCertificate(displayed); }
 
         // Si essais épuisés, on désactive START
         if(getTries() >= MAX_TRIES){
@@ -403,7 +533,7 @@
         certCode.textContent = code;
         certMark.textContent = 'GAGNÉ';
 
-        try{ localStorage.setItem(LS_CERT, JSON.stringify({ time: certTime.textContent, prize, date: certDate.textContent, code })); }catch(_){}
+        try{ localStorage.setItem(LS_CERT, JSON.stringify({ time: certTime.textContent, prize, date: certDate.textContent, code })); }catch(_){ }
         backdrop.style.display='flex';
       }
 
