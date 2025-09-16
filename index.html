@@ -141,16 +141,6 @@
     <div id="triesInfo" class="hint" aria-live="polite"></div>
     <div id="playedBanner" class="hint" style="display:none"><span class="warn">Nombre d'essais épuisés sur cet appareil.</span></div>
   </section>
-
-  <div class="wrap" id="app" hidden>
-    <header>
-      <div class="brandmark" aria-hidden="true">VR</div>
-      <div>
-        <h3>Le Village Ronsard</h3>
-        <div class="subtitle">Jeu Chrono — Paris 5ᵉ • Précision & gourmandise</div>
-      </div>
-    </header>
-
     <section class="card game" id="game" aria-describedby="rules">
       <div class="head">
         <div>
@@ -237,6 +227,33 @@
       </div>
     </div>
   </div>
+
+  <!-- ⬅️ NOUVEAU : petite fenêtre pour le 3ᵉ et dernier essai -->
+  <div class="backdrop" id="lastTryBackdrop" role="dialog" aria-modal="true" aria-labelledby="lastTryTitle" style="display:none">
+    <div class="modal" role="document">
+      <div class="head" style="padding:14px 18px">
+        <strong id="lastTryTitle">Dernier essai</strong>
+        <button class="btn btn-ghost" id="closeLastTry" aria-label="Fermer l'information">Fermer</button>
+      </div>
+      <div class="body" style="padding:18px">
+        <div class="ticket">
+          <div class="certhead" style="margin-bottom:6px">
+            <h3>Le Village Ronsard — Paris</h3>
+            <span class="mark">3ᵉ et dernier essai</span>
+          </div>
+          <div class="certbody" style="gap:10px">
+            <p style="margin:0">C’était votre <b>troisième et dernier essai</b> sur cet appareil — c’est malheureusement fini pour aujourd’hui. À bientôt&nbsp;!</p>
+            <p style="margin:0">Et si ce n’est pas déjà fait, n’hésitez pas à nous écrire votre avis&nbsp;:</p>
+          </div>
+          <div class="certfoot" style="margin-top:14px; justify-content:flex-end">
+            <a class="btn" id="openMaps2" target="_blank" rel="noopener"
+               href="https://www.google.fr/maps/place/Le+Village+Ronsard/@48.8502034,2.3480831,19z/data=!4m11!1m2!2m1!1smaubert+mutualit%C3%A9!3m7!1s0x47e671e6be62f4e1:0x6c4ad3222a595bd!8m2!3d48.8498161!4d2.3481585!9m1!1b1!16s%2Fg%2F1tkbxjsm!5m1!1e1?entry=ttu&g_ep=EgoyMDI1MDkxMC4wIKXMDSoASAFQAw%3D%3D">Laisser un avis Google</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- FIN NOUVEAU -->
 
   <script>
     const LS_UNLOCK = 'village_ronsard_gate_unlocked_v4';
@@ -404,31 +421,10 @@
         FX.stop();
       }
 
-      // ⬅️ MODIF : page d'alerte pour le 3e essai
+      // ⬅️ MODIF : petite fenêtre (modal) au démarrage du 3ᵉ essai
       function openLastTryNotice(){
-        const w = window.open('', '_blank', 'noopener,noreferrer');
-        if(!w) return;
-        w.document.write(`
-          <!doctype html><html lang="fr"><head>
-          <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Dernier essai</title>
-          <style>
-            body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0f3d2e;color:#f7f2e9;display:grid;place-items:center;min-height:100vh}
-            .box{max-width:720px;margin:24px;padding:28px;border-radius:18px;background:#143f30;box-shadow:0 12px 30px rgba(0,0,0,.25);text-align:center}
-            h1{font-family:"Playfair Display",serif;margin:0 0 8px}
-            p{opacity:.95;line-height:1.6}
-            .tag{display:inline-block;margin-top:10px;padding:8px 12px;border-radius:999px;background:#b8902e;color:#241d0f;font-weight:800}
-          </style>
-          </head><body>
-            <div class="box">
-              <h1>⚠️ Dernier essai</h1>
-              <p>Vous êtes sur le <b>3ᵉ et dernier essai</b> pour ce jeu sur cet appareil.</p>
-              <p>Arrêtez le chrono le plus proche possible de <b>0,00 s</b> : un résultat <b>entre -0,10 s et +0,10 s</b> (affiché) est gagnant.</p>
-              <div class="tag">Bonne chance !</div>
-            </div>
-          </body></html>
-        `);
-        w.document.close();
+        const backdrop = qs('#lastTryBackdrop');
+        if(backdrop){ backdrop.style.display = 'flex'; }
       }
 
       function start(){
@@ -441,7 +437,7 @@
           return;
         }
 
-        // ⬅️ MODIF : ouvrir la page d’information quand on démarre le 3ᵉ essai
+        // ⬅️ MODIF : ouvrir la fenêtre d’information quand on démarre le 3ᵉ essai
         if(tries === MAX_TRIES - 1){
           openLastTryNotice();
         }
@@ -589,6 +585,14 @@
           certCode.textContent = last.code;
         }
       }catch(_){ }
+    })();
+
+    // ⬅️ NOUVEAU : gestion de la fermeture de la fenêtre "Dernier essai"
+    (function(){
+      const lastBackdrop = qs('#lastTryBackdrop');
+      const closeLastTry = qs('#closeLastTry');
+      closeLastTry && closeLastTry.addEventListener('click', ()=> lastBackdrop.style.display='none');
+      lastBackdrop && lastBackdrop.addEventListener('click', (e)=>{ if(e.target===lastBackdrop) lastBackdrop.style.display='none' });
     })();
   </script>
 </body>
