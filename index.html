@@ -42,6 +42,9 @@
     .warn{ color:var(--error); font-weight:700 }
 
     .wrap{max-width:980px;margin:0 auto;padding:100px 20px 20px;display:none;width:100%}
+    header{display:flex;align-items:center;gap:12px;margin:8px 0 10px}
+    header h3{margin:0;font-size:clamp(18px,4.5vw,24px)}
+    .subtitle{opacity:.95;margin-top:2px;font-size:clamp(13px,3.5vw,15px)}
 
     .card{background:var(--cream);color:var(--ink);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
     .card .head{background:linear-gradient(180deg, var(--green) 0%, var(--green-2) 100%); color:var(--cream); padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
@@ -50,14 +53,8 @@
 
     .game{margin-top:0}
     .timer{font-family:"Playfair Display", serif;font-size:clamp(64px,15vw,128px);text-align:center;margin:8px 0;color:var(--green);transition: transform .25s ease, color .25s ease, text-shadow .25s ease}
-    /* === Mise en grille des contrôles pour placer Rejouer sous STOP === */
-    .controls{
-      position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:10px;flex-wrap:wrap;padding:8px 0 0
-    }
-    .controls .btn{min-height:56px;padding-block:18px}
-    #startBtn{grid-column:1;grid-row:1}
-    #stopBtn{grid-column:2;grid-row:1}
-    #replayBtn{grid-column:2;grid-row:2}
+    .controls{position:sticky;bottom:0;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:8px 0 0}
+    .controls .btn{flex:1 1 220px;min-height:56px;padding-block:18px}
 
     .panel{display:grid;gap:14px;grid-template-columns:1fr;max-width:760px;margin:0 auto}
     .rules{font-size:15px;line-height:1.6;background:#fff;border:1px dashed #d7c9a4;border-radius:14px;padding:14px}
@@ -146,13 +143,19 @@
   </section>
 
   <div class="wrap" id="app" hidden>
-    <!-- (ENTÊTE INTERNE SUPPRIMÉE pour éviter le doublon) -->
+    <header>
+      <div class="brandmark" aria-hidden="true">VR</div>
+      <div>
+        <h3>Le Village Ronsard</h3>
+        <div class="subtitle">Jeu Chrono — Paris 5ᵉ • Précision & gourmandise</div>
+      </div>
+    </header>
 
     <section class="card game" id="game" aria-describedby="rules">
       <div class="head">
         <div>
           <strong>Jeu Chrono</strong>
-          <div class="badge">Objectif : arrêter à <b>0,00 s</b> (tolérance 0,10 s)</div>
+          <div class="badge">Objectif : arrêter à <b>0,00 s</b> (tolérance 0,10 s)</div> <!-- ⬅️ MODIF: cohérence 2 décimales -->
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <div class="badge">Récompense : dessert 🍰 ou boisson 🥤</div>
@@ -177,14 +180,14 @@
                 <span>PERDU</span>
               </div>
             </div>
-            <div class="timer" id="timer" aria-label="Temps restant">10,00</div>
+            <div class="timer" id="timer" aria-label="Temps restant">10,00</div> <!-- ⬅️ MODIF: 2 décimales -->
             <div class="curtain" id="curtain" aria-hidden="true"></div>
           </div>
 
           <div class="controls" role="group" aria-label="Contrôles">
             <button class="btn" id="startBtn" aria-describedby="startHint">Démarrer</button>
             <button class="btn btn-gold" id="stopBtn" disabled>STOP</button>
-            <button class="btn btn-ghost" id="replayBtn">Rejouer</button>
+            <button class="btn btn-ghost" id="replayBtn" disabled>Rejouer</button>
           </div>
           <span id="startHint" class="sr-only">Trois essais maximum par appareil. Utilisez STOP pour arrêter le chrono.</span>
 
@@ -235,7 +238,7 @@
     </div>
   </div>
 
-  <!-- Fenêtre pour le 3ᵉ et dernier essai -->
+  <!-- ⬅️ NOUVEAU : petite fenêtre pour le 3ᵉ et dernier essai -->
   <div class="backdrop" id="lastTryBackdrop" role="dialog" aria-modal="true" aria-labelledby="lastTryTitle" style="display:none">
     <div class="modal" role="document">
       <div class="head" style="padding:14px 18px">
@@ -252,29 +255,32 @@
             <p style="margin:0">C’était votre <b>troisième et dernier essai</b> sur cet appareil — c’est malheureusement fini pour aujourd’hui. À bientôt&nbsp;!</p>
             <p style="margin:0">Et si ce n’est pas déjà fait, n’hésitez pas à nous écrire votre avis&nbsp;:</p>
           </div>
-          <!-- === Boutons centrés dans la fenêtre de fin des 3 essais === -->
-          <div class="certfoot" style="margin-top:14px; justify-content:center; gap:10px">
+          <div class="certfoot" style="margin-top:14px; justify-content:flex-end">
             <a class="btn" id="openMaps2" target="_blank" rel="noopener"
                href="https://www.google.fr/maps/place/Le+Village+Ronsard/@48.8502034,2.3480831,19z/data=!4m11!1m2!2m1!1smaubert+mutualit%C3%A9!3m7!1s0x47e671e6be62f4e1:0x6c4ad3222a595bd!8m2!3d48.8498161!4d2.3481585!9m1!1b1!16s%2Fg%2F1tkbxjsm!5m1!1e1?entry=ttu&g_ep=EgoyMDI1MDkxMC4wIKXMDSoASAFQAw%3D%3D">Laisser un avis Google</a>
-            <button class="btn btn-ghost" id="closeLastTryBottom" aria-label="Fermer">Fermer</button>
           </div>
         </div>
       </div>
     </div>
   </div>
-  <!-- FIN -->
+  <!-- FIN NOUVEAU -->
 
   <script>
     const LS_UNLOCK = 'village_ronsard_gate_unlocked_v4';
     const LS_TRIES  = 'village_ronsard_tries_v1';
     const MAX_TRIES = 3;
     const LS_CERT   = 'village_ronsard_last_cert_v1';
+    /* ⬅️ AJOUT : compteur d'échecs */
+    const LS_FAILS  = 'village_ronsard_fails_v1';
 
     const canVibrate = 'vibrate' in navigator;
     const vibe = (pat)=> { try{ if(canVibrate) navigator.vibrate(pat); }catch(_){} };
     const qs = (sel)=> document.querySelector(sel);
     const getTries = ()=> { const n = parseInt(localStorage.getItem(LS_TRIES)||'0',10); return isNaN(n)?0:n; };
     const setTries = (n)=> localStorage.setItem(LS_TRIES, String(n));
+    /* ⬅️ AJOUT : helpers échecs */
+    const getFails = ()=> { const n = parseInt(localStorage.getItem(LS_FAILS)||'0',10); return isNaN(n)?0:n; };
+    const setFails = (n)=> localStorage.setItem(LS_FAILS, String(n));
 
     (function(){
       const gate = qs('#gate');
@@ -312,6 +318,8 @@
           localStorage.removeItem(LS_UNLOCK);
           localStorage.removeItem(LS_TRIES);
           localStorage.removeItem(LS_CERT);
+          /* ⬅️ AJOUT : reset des échecs */
+          localStorage.removeItem(LS_FAILS);
         }
       }catch(e){}
 
@@ -400,6 +408,7 @@
         badgeTries.textContent = `Essai ${currentIndex}/${MAX_TRIES}`;
       }
 
+      // ⬅️ MODIF : format à 2 décimales
       function fmt(t){
         const sign = t < 0 ? '-' : '';
         const abs = Math.abs(t);
@@ -429,6 +438,7 @@
         FX.stop();
       }
 
+      // ⬅️ MODIF : petite fenêtre (modal) au démarrage du 3ᵉ essai
       function openLastTryNotice(){
         const backdrop = qs('#lastTryBackdrop');
         if(backdrop){ backdrop.style.display = 'flex'; }
@@ -444,7 +454,8 @@
           return;
         }
 
-        if(tries === MAX_TRIES - 1){
+        // ⬅️ MODIF : ouvrir la fenêtre d’information quand on démarre le 3ᵉ essai
+        if(tries >= MAX_TRIES){
           openLastTryNotice();
         }
 
@@ -453,12 +464,12 @@
         curtain.classList.remove('show');
         resetFX();
         startAt = performance.now();
-        timerEl.textContent = '10,00';
+        timerEl.textContent = '10,00'; // ⬅️ MODIF
         startBtn.disabled = true;
         stopBtn.disabled = false;
+        replayBtn.disabled = true;
         raf && cancelAnimationFrame(raf);
         raf = requestAnimationFrame(render);
-        replayBtn.disabled = false; /* garde Rejouer actif */
         vibe([40]);
       }
 
@@ -480,6 +491,7 @@
         if(startAt==null || stopped) return;
         stopped = true;
         stopBtn.disabled = true;
+        replayBtn.disabled = true;
         raf && cancelAnimationFrame(raf);
 
         const now = performance.now();
@@ -488,8 +500,10 @@
 
         curtain.classList.remove('show');
 
+        // ⬅️ MODIF : figer à 2 décimales
         timerEl.textContent = fmt(finalRemaining);
 
+        // ⬅️ MODIF : succès basé UNIQUEMENT sur la valeur affichée et seuil ±0,10
         const displayed = readDisplayedSeconds();
         const won = Math.abs(displayed) <= 0.10;
         const status = won ? 'GAGNÉ' : 'PERDU';
@@ -503,6 +517,15 @@
           won ? showWinFX() : showFailFX();
         }
 
+        /* ⬅️ AJOUT : incrémenter les échecs et recharger après 3 échecs */
+        if(!won){
+          const f = getFails() + 1;
+          setFails(f);
+          if(f >= 3){
+            try{ location.reload(); }catch(_){}
+          }
+        }
+
         const used = getTries();
         setTries(Math.min(MAX_TRIES, used + 1));
         updateBadges();
@@ -514,27 +537,12 @@
         } else {
           startBtn.disabled = false;
         }
-        replayBtn.disabled = false; /* garde Rejouer actif */
       }
 
-      /* === Bouton Rejouer : remet juste l'affichage à 0,00 (sans autre effet) === */
-      function replayZero(){
-        if(raf){ cancelAnimationFrame(raf); raf=null; }
-        startAt = null;
-        stopped = true;
-        finalRemaining = null;
-        curtain.classList.remove('show');
-        resetFX();
-        timerEl.textContent = '0,00';
-        stopBtn.disabled = true;
-        startBtn.disabled = false;
-        result.style.display='none';
-        vibe([20]);
-      }
+      replayBtn.style.display = 'none';
 
       startBtn && startBtn.addEventListener('click', start, { passive: true });
       stopBtn && stopBtn.addEventListener('click', stop, { passive: true });
-      replayBtn && replayBtn.addEventListener('click', replayZero, { passive: true });
 
       window.addEventListener('keydown', (e)=>{
         if(e.code==='Space'){
@@ -548,9 +556,6 @@
         startBtn.disabled = true;
         stopBtn.disabled = true;
         timerEl.textContent = '— — —';
-      } else {
-        stopBtn.disabled = true; /* au repos, STOP inactif */
-        replayBtn.disabled = false; /* Rejouer disponible */
       }
     })();
 
@@ -570,7 +575,7 @@
         const when = new Date();
         const code = genCode(when, remaining);
 
-        certTime.textContent = `${Math.abs(remaining).toFixed(2).replace('.', ',')} s`;
+        certTime.textContent = `${Math.abs(remaining).toFixed(2).replace('.', ',')} s`; // ⬅️ MODIF : 2 décimales
         certPrize.textContent = prize;
         certDate.textContent = when.toLocaleString('fr-FR', { dateStyle:'long', timeStyle:'medium' });
         certCode.textContent = code;
@@ -581,7 +586,7 @@
       }
 
       function genCode(date, t){
-        const base = `${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}-${date.getHours().toString().padStart(2,'0')}${date.getMinutes().toString().padStart(2,'0')}${date.getSeconds().toString().padStart(2,'0')}-${Math.round(Math.abs(t)*100).toString().padStart(2,'0')}`;
+        const base = `${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}-${date.getHours().toString().padStart(2,'0')}${date.getMinutes().toString().padStart(2,'0')}${date.getSeconds().toString().padStart(2,'0')}-${Math.round(Math.abs(t)*100).toString().padStart(2,'0')}`; // ⬅️ MODIF: code basé sur 2 déc.
         let sum = 0; for(const c of base){ sum = (sum + c.charCodeAt(0)) % 997; }
         return `VR-${base}-${sum.toString(16).toUpperCase()}`;
       }
@@ -608,15 +613,13 @@
       }catch(_){ }
     })();
 
+    // ⬅️ NOUVEAU : gestion de la fermeture de la fenêtre "Dernier essai"
     (function(){
       const lastBackdrop = qs('#lastTryBackdrop');
       const closeLastTry = qs('#closeLastTry');
-      const closeLastTryBottom = qs('#closeLastTryBottom');
       closeLastTry && closeLastTry.addEventListener('click', ()=> lastBackdrop.style.display='none');
-      closeLastTryBottom && closeLastTryBottom.addEventListener('click', ()=> lastBackdrop.style.display='none');
       lastBackdrop && lastBackdrop.addEventListener('click', (e)=>{ if(e.target===lastBackdrop) lastBackdrop.style.display='none' });
     })();
   </script>
 </body>
 </html>
-```
