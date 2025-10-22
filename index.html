@@ -1,78 +1,450 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>EPW Projection — RCP (Web)</title>
-  <link rel="stylesheet" href="style.css" />
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ExternalLink, Star, Sparkles, Play, CheckCircle2, Download, ShieldCheck, CircleHelp, Lock, MapPin } from "lucide-react";
+import confetti from "canvas-confetti";
+import { jsPDF } from "jspdf";
 
-  <!-- PyScript (Pyodide) -->
-  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.3/core.css">
-  <script type="module" src="https://pyscript.net/releases/2024.9.3/core.js"></script>
+// shadcn/ui components (assumed available)
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-  <!-- Config: on charge numpy, pandas, matplotlib -->
-  <py-config>
-  </py-config>
-</head>
-<body>
-  <header>
-    <h1>Projection EPW — RCP (Web)</h1>
-    <p>Choisissez le scénario/année, chargez un EPW, puis tracez chaque variable. La projection est en rouge. Téléchargez le nouvel EPW en bas.</p>
-  </header>
+// ——— Config ———
+const RESTO_NAME = "Le Village Ronsard";
+const GOOGLE_REVIEW_URL = "https://www.google.com/maps/place/Le+Village+Ronsard/@48.8498161,2.3455836,17z/data=!4m8!3m7!1s0x47e671e6be62f4e1:0x6c4ad3222a595bd!8m2!3d48.8498161!4d2.3481585!9m1!1b1!16s%2Fg%2F1tkbxjsm?hl=fr&entry=ttu&g_ep=EgoyMDI1MTAxNC4wIKXMDSoASAFQAw%3D%3D";
+const MAPS_EMBED_URL = "https://www.google.com/maps?q=Le%20Village%20Ronsard%2075005&output=embed"; // Affichage plan (laisser un avis nécessite ouverture externe)
+const STORAGE_KEY_LOCK = "rft_village_ron_one_play"; // verrou illimité une fois joué
 
-  <section class="controls">
-    <div class="control-group">
-      <label for="rcp">Scénario RCP</label>
-      <select id="rcp">
-        <option>RCP2.6</option>
-        <option>RCP4.5</option>
-        <option>RCP6.0</option>
-        <option selected>RCP8.5</option>
-      </select>
-    </div>
+// Probabilités : 10% bière, 50% dessert, 40% rien
+const pickPrize = () => {
+  const r = Math.random();
+  if (r < 0.10) return { key: "beer", label: "Une bière offerte", odds: "10%" } as const;
+  if (r < 0.60) return { key: "dessert", label: "Un dessert offert", odds: "50%" } as const;
+  return { key: "none", label: "Dommage, rien cette fois", odds: "40%" } as const;
+};
 
-    <div class="control-group">
-      <label for="year">Année de projection</label>
-      <select id="year">
-        <option>2050</option>
-        <option selected>2100</option>
-      </select>
-    </div>
+const formatNowParis = () => {
+  try {
+    const fmt = new Intl.DateTimeFormat("fr-FR", {
+      timeZone: "Europe/Paris",
+      dateStyle: "full",
+      timeStyle: "short",
+    });
+    return fmt.format(new Date());
+  } catch {
+    return new Date().toLocaleString("fr-FR");
+  }
+};
 
-    <div class="control-group file">
-      <label for="epwfile">Fichier EPW</label>
-      <input type="file" id="epwfile" accept=".epw" />
-      <button id="loadBtn">Charger</button>
-      <span id="fileInfo">Aucun fichier chargé.</span>
-    </div>
-  </section>
+// ——— Roulette améliorée (SVG) ———
+const SEGMENTS = [
+  { key: "beer", label: "BIÈRE", sub: "10%" },
+  { key: "dessert", label: "DESSERT", sub: "" },
+  { key: "none", label: "RIEN", sub: "" },
+  { key: "dessert", label: "DESSERT", sub: "" },
+  { key: "dessert", label: "DESSERT", sub: "" },
+  { key: "none", label: "RIEN", sub: "" },
+  { key: "dessert", label: "DESSERT", sub: "" },
+  { key: "none", label: "RIEN", sub: "" },
+];
 
-  <main class="main">
-    <aside class="vars">
-      <h2>Variables EPW</h2>
-      <div id="varsList" class="vars-list">
-        <!-- Boutons variables générés ici -->
+function segmentColor(i: number) {
+  // Alternance douce
+  return i % 2 === 0 ? "#fde68a" : "#fef3c7"; // amber-200 / amber-100
+}
+
+function buildSlicePath(cx: number, cy: number, r: number, a0: number, a1: number) {
+  const rad = (a: number) => (a * Math.PI) / 180;
+  const x0 = cx + r * Math.cos(rad(a0));
+  const y0 = cy + r * Math.sin(rad(a0));
+  const x1 = cx + r * Math.cos(rad(a1));
+  const y1 = cy + r * Math.sin(rad(a1));
+  const largeArc = a1 - a0 <= 180 ? 0 : 1;
+  return `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${largeArc} 1 ${x1} ${y1} Z`;
+}
+
+const PrizeBadge: React.FC<{ prizeKey: string | null }> = ({ prizeKey }) => {
+  if (!prizeKey) return null;
+  const map: Record<string, { t: string; cls: string }> = {
+    beer: { t: "BIÈRE", cls: "bg-emerald-600" },
+    dessert: { t: "DESSERT", cls: "bg-indigo-600" },
+    none: { t: "AUCUN GAIN", cls: "bg-zinc-600" },
+  };
+  const p = map[prizeKey];
+  return (
+    <span className={`text-xs text-white px-2 py-1 rounded-full ${p.cls}`}>{p.t}</span>
+  );
+};
+
+export default function App() {
+  const [firstname, setFirstname] = useState("");
+  const [lastname, setLastname] = useState("");
+  const [isAdult, setIsAdult] = useState(false);
+  const [ackPolicy, setAckPolicy] = useState(false);
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const [reviewClicked, setReviewClicked] = useState(false);
+  const [locked, setLocked] = useState(false);
+
+  const [spinning, setSpinning] = useState(false);
+  const [rotation, setRotation] = useState(0);
+  const [result, setResult] = useState<ReturnType<typeof pickPrize> | null>(null);
+  const [openCert, setOpenCert] = useState(false);
+
+  const nowStr = useMemo(() => formatNowParis(), [result]);
+
+  useEffect(() => {
+    // Verrou: une seule fois (persiste sur l'appareil)
+    try {
+      const v = localStorage.getItem(STORAGE_KEY_LOCK);
+      if (v === "1") setLocked(true);
+    } catch {}
+  }, []);
+
+  const canPlay = useMemo(() => {
+    return (
+      !!firstname &&
+      !!lastname &&
+      reviewConfirmed &&
+      reviewClicked &&
+      ackPolicy &&
+      !spinning &&
+      !locked &&
+      (isAdult || true) // on autorise le jeu même si bière indisponible; la bière ne sera pas valide si <18
+    );
+  }, [firstname, lastname, reviewConfirmed, reviewClicked, ackPolicy, spinning, locked, isAdult]);
+
+  const handleSpin = async () => {
+    if (!canPlay) return;
+    setSpinning(true);
+    setResult(null);
+
+    // Choix de gain selon proba
+    const prize = pickPrize();
+
+    // Trouver un segment correspondant au prix pour aligner l'arrêt
+    const candidates = SEGMENTS.map((s, i) => ({ s, i })).filter(x => x.s.key === prize.key).map(x => x.i);
+    const targetIdx = candidates[Math.floor(Math.random() * candidates.length)];
+
+    const rounds = 6 + Math.floor(Math.random() * 3); // 6–8 tours
+    const sliceAngle = 360 / SEGMENTS.length;
+    const targetAngle = 360 - (targetIdx * sliceAngle + sliceAngle / 2); // flèche en haut
+    const finalRotation = rounds * 360 + targetAngle;
+
+    setRotation(prev => prev + finalRotation);
+
+    // Son de cliquetis léger
+    let ticks = 32;
+    const tick = () => {
+      try {
+        const a = new Audio();
+        // petit bip synthétique via data URI (silencieux si bloqué par navigateur)
+        a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAAAZGF0YQAAAAA=";
+        a.play().catch(()=>{});
+      } catch {}
+    };
+    const tickInterval = setInterval(() => { tick(); ticks--; if (ticks<=0) clearInterval(tickInterval); }, 90);
+
+    await new Promise(res => setTimeout(res, 4200));
+
+    setSpinning(false);
+    setResult(prize);
+
+    // Verrou permanent après la tentative (gagnée ou non)
+    try { localStorage.setItem(STORAGE_KEY_LOCK, "1"); } catch {}
+    setLocked(true);
+
+    if (prize.key !== "none") {
+      confetti({ spread: 70, origin: { y: 0.4 } });
+    }
+  };
+
+  const downloadCertificate = () => {
+    if (!result || result.key === "none") return;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+
+    const pad = 48;
+    const w = doc.internal.pageSize.getWidth();
+    const center = (t: string) => (w - doc.getTextWidth(t)) / 2;
+
+    // Cadre
+    doc.setDrawColor(30);
+    doc.setLineWidth(2);
+    doc.roundedRect(pad, pad, w - 2 * pad, 744, 16, 16, "S");
+
+    // Titre
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(28);
+    const title = "CERTIFICAT DE RÉUSSITE";
+    doc.text(title, center(title), 120);
+
+    // Sous-titre
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(14);
+    const subtitle = `Jeu du restaurant ${RESTO_NAME}`;
+    doc.text(subtitle, center(subtitle), 145);
+
+    // Infos gagnant
+    doc.setFontSize(16);
+    doc.text("Attribué à :", pad + 40, 210);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${firstname} ${lastname}`.toUpperCase(), pad + 150, 210);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("Gain :", pad + 40, 250);
+    doc.setFont("helvetica", "bold");
+    doc.text(result.label, pad + 150, 250);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("Date et heure (Europe/Paris) :", pad + 40, 290);
+    doc.setFont("helvetica", "bold");
+    doc.text(nowStr, pad + 260, 290);
+
+    // Mentions
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const footer = `Valide uniquement le jour d\'émission – présentation obligatoire à ${RESTO_NAME}. Non cumulable, 1 participation par appareil.`;
+    doc.text(footer, pad + 40, 680, { maxWidth: w - 2 * pad - 80 });
+
+    const sig = "Signature restaurant";
+    doc.text(sig, w - pad - 200, 700);
+    doc.line(w - pad - 200, 705, w - pad, 705);
+
+    const file = `Certificat_${lastname}_${firstname}_${Date.now()}.pdf`;
+    doc.save(file);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-100 text-zinc-900">
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <header className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Sparkles className="w-7 h-7 text-amber-600" />
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{RESTO_NAME} — Jeu Roulette</h1>
+              <p className="text-sm text-zinc-600">Fun, dynamique, mais professionnel ✦ 10% bière · 50% dessert · 40% rien</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="secondary" className="rounded-xl" onClick={()=>setReviewClicked(true)}>
+              <a href={GOOGLE_REVIEW_URL} target="_blank" rel="noreferrer">
+                Laisser un avis Google <ExternalLink className="ml-2 w-4 h-4" />
+              </a>
+            </Button>
+          </div>
+        </header>
+
+        <div className="grid md:grid-cols-2 gap-6 mt-6">
+          {/* LEFT: Form & policy */}
+          <Card className="rounded-2xl shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Avant de jouer</CardTitle>
+              <CardDescription>Renseignez vos informations. Le jeu ne se débloque qu'après avoir ouvert la page d'avis.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Prénom</Label>
+                  <Input inputMode="text" autoComplete="given-name" value={firstname} onChange={(e)=>setFirstname(e.target.value)} placeholder="Marie" />
+                </div>
+                <div>
+                  <Label>Nom</Label>
+                  <Input inputMode="text" autoComplete="family-name" value={lastname} onChange={(e)=>setLastname(e.target.value)} placeholder="Dupont" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 border">
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-amber-600" />
+                  <p className="text-sm">Je confirme avoir publié un avis pour {RESTO_NAME}.</p>
+                </div>
+                <Switch checked={reviewConfirmed} onCheckedChange={setReviewConfirmed} />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl border">
+                  <Switch checked={isAdult} onCheckedChange={setIsAdult} id="age" />
+                  <Label htmlFor="age" className="text-sm">J'ai 18 ans ou plus (bière réservée aux majeurs).</Label>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl border">
+                  <Switch checked={ackPolicy} onCheckedChange={setAckPolicy} id="policy" />
+                  <Label htmlFor="policy" className="text-sm">J'accepte le règlement et la confidentialité.</Label>
+                </div>
+              </div>
+
+              <Alert className="border-amber-300 bg-amber-50">
+                <AlertTitle className="flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> Règles</AlertTitle>
+                <AlertDescription className="text-sm">
+                  Une seule participation par appareil (mobile compris). Les avis doivent rester honnêtes (pas d'exigence d'avis positif).
+                </AlertDescription>
+              </Alert>
+
+              <Separator />
+
+              {locked && (
+                <div className="flex items-center gap-2 text-amber-700 text-sm">
+                  <Lock className="w-4 h-4" /> Jeu verrouillé sur cet appareil.
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-zinc-600">Horodatage Europe/Paris : <span className="font-medium">{nowStr}</span></div>
+                <Button
+                  disabled={!canPlay}
+                  onClick={handleSpin}
+                  className="rounded-xl text-base px-5 py-6"
+                >
+                  Lancer <Play className="ml-2 w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* RIGHT: Map + Roulette */}
+          <div className="space-y-4">
+            {/* Google Maps embed (informationnel) */}
+            <Card className="rounded-2xl shadow-sm overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2"><MapPin className="w-4 h-4" /> {RESTO_NAME}</CardTitle>
+                <CardDescription>Vous pouvez ouvrir la page pour laisser un avis. L'interface d'avis ne s'intègre pas directement ici.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="aspect-video w-full">
+                  <iframe
+                    title="Google Maps"
+                    src={MAPS_EMBED_URL}
+                    className="w-full h-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">Roulette</CardTitle>
+                <CardDescription>Flèche en haut = résultat</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="relative mx-auto w-80 h-80 md:w-96 md:h-96 select-none">
+                  {/* Flèche */}
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                    <div className="w-0 h-0 border-l-10 border-r-10 border-b-[20px] border-l-transparent border-r-transparent border-b-amber-600 drop-shadow" />
+                  </div>
+
+                  {/* Wheel (SVG) */}
+                  <div
+                    className="relative w-full h-full rounded-full border-8 border-amber-200 shadow-inner overflow-hidden"
+                    style={{
+                      transition: "transform 4.2s cubic-bezier(0.22, 1, 0.36, 1)",
+                      transform: `rotate(${rotation}deg)`,
+                    }}
+                  >
+                    <svg viewBox="0 0 200 200" className="w-full h-full">
+                      <defs>
+                        <radialGradient id="g" cx="50%" cy="50%" r="60%">
+                          <stop offset="0%" stopColor="#fff" stopOpacity="0.9" />
+                          <stop offset="100%" stopColor="#fde68a" stopOpacity="0.4" />
+                        </radialGradient>
+                      </defs>
+                      <circle cx="100" cy="100" r="98" fill="url(#g)" />
+                      {SEGMENTS.map((s, i) => {
+                        const a0 = (360 / SEGMENTS.length) * i - 90; // commence en haut
+                        const a1 = a0 + 360 / SEGMENTS.length;
+                        const d = buildSlicePath(100, 100, 90, a0, a1);
+                        return (
+                          <g key={i}>
+                            <path d={d} fill={segmentColor(i)} stroke="#f59e0b" strokeWidth={0.5} />
+                            {/* Libellé */}
+                            <g transform={`rotate(${(a0 + a1) / 2} 100 100)`}>
+                              <text x="100" y="22" textAnchor="middle" fontSize="10" fontWeight="700" fill="#7c2d12">
+                                {s.label}
+                              </text>
+                              {s.sub && (
+                                <text x="100" y="34" textAnchor="middle" fontSize="8" fill="#7c2d12">{s.sub}</text>
+                              )}
+                            </g>
+                          </g>
+                        );
+                      })}
+                      {/* Hub */}
+                      <circle cx="100" cy="100" r="18" fill="#fb923c" stroke="#7c2d12" strokeWidth="1" />
+                      <circle cx="100" cy="100" r="6" fill="#fff" />
+                    </svg>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {result && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="mt-5 p-4 rounded-xl border bg-white flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className={`w-5 h-5 ${result.key === "none" ? "text-zinc-500" : "text-emerald-600"}`} />
+                        <div>
+                          <div className="font-medium">{result.label}</div>
+                          <div className="text-xs text-zinc-600">Probabilité: {result.odds}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <PrizeBadge prizeKey={result.key} />
+                        <Button
+                          variant={result.key === "none" ? "outline" : "default"}
+                          disabled={result.key === "none"}
+                          onClick={() => setOpenCert(true)}
+                          className="rounded-xl"
+                        >
+                          Générer le certificat
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Footer legal */}
+        <div className="mt-6 text-xs text-zinc-500 flex items-start gap-2">
+          <CircleHelp className="w-4 h-4 mt-0.5" />
+          <p>
+            Note : Pour respecter les politiques d\'avis, les retours doivent refléter votre expérience réelle et ne pas être conditionnés à une récompense. Ce jeu n\'exige pas d\'avis positif. Laisser un avis peut nécessiter d'ouvrir Google Maps hors de ce site.
+          </p>
+        </div>
       </div>
-      <div class="export">
-        <button id="exportBtn" disabled>Télécharger EPW projeté</button>
-        <a id="downloadLink" download="projected.epw" style="display:none;">Télécharger</a>
-      </div>
-    </aside>
-    <section class="plot">
-      <h2>Visualisation</h2>
-      <div id="plotNote">Axe des x = unité de temps arbitraire (échantillons 1..N). Courbe continue passant par tous les points.</div>
-      <div id="plotArea">
-        <!-- Matplotlib figure s’affiche ici -->
-      </div>
-      <div id="status">Prêt.</div>
-    </section>
-  </main>
 
-  <footer>
-    <small>Exécute entièrement dans votre navigateur via PyScript (Pyodide).</small>
-  </footer>
-
-  <!-- Code Python -->
-  <py-script src="app.py"></py-script>
-</body>
-</html>
+      {/* Dialog Certificat */}
+      <Dialog open={openCert} onOpenChange={setOpenCert}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Certificat de réussite</DialogTitle>
+            <DialogDescription>Vérifiez les informations, puis téléchargez le PDF.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm">
+              <div><span className="text-zinc-500">Bénéficiaire :</span> <span className="font-medium">{firstname} {lastname}</span></div>
+              <div><span className="text-zinc-500">Gain :</span> <span className="font-medium">{result?.label}</span></div>
+              <div><span className="text-zinc-500">Horodatage :</span> <span className="font-medium">{nowStr}</span></div>
+              <div><span className="text-zinc-500">Restaurant :</span> <span className="font-medium">{RESTO_NAME}</span></div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={()=>setOpenCert(false)}>Fermer</Button>
+              <Button onClick={downloadCertificate} className="rounded-xl">
+                <Download className="w-4 h-4 mr-2" /> Télécharger le PDF
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
